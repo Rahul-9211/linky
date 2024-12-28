@@ -5,113 +5,154 @@
  * @format
  */
 
-import React from 'react';
-import type {PropsWithChildren} from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   SafeAreaView,
-  ScrollView,
-  StatusBar,
   StyleSheet,
-  Text,
-  useColorScheme,
   View,
+  Text,
+  TouchableOpacity,
+  Alert,
 } from 'react-native';
+import LinkList from './components/LinkList';
+import AddLinkModal from './components/AddLinkModal';
+import SearchBar from './components/SearchBar';
+import { StorageProvider } from './services/storage/StorageContext';
+import { LocalStorage } from './services/storage/LocalStorage';
+import { useStorage } from './services/storage/StorageContext';
+import { SearchService } from './services/search/SearchService';
+import BottomTabBar from './components/BottomTabBar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Link } from './services/storage/StorageInterface';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+const localStorage = new LocalStorage();
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
+function AppContent(): React.JSX.Element {
+  const [links, setLinks] = useState<Link[]>([]);
+  const [filteredLinks, setFilteredLinks] = useState<Link[]>([]);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchService, setSearchService] = useState<SearchService | null>(null);
+  const storage = useStorage();
 
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
+  useEffect(() => {
+    loadLinks();
+  }, []);
+
+  useEffect(() => {
+    if (links.length > 0) {
+      setSearchService(new SearchService(links));
+      setFilteredLinks(links);
+    }else{
+      setSearchService(null);
+      setFilteredLinks([]);
+    }
+  }, [links]);
+
+  const loadLinks = async () => {
+    try {
+      const savedLinks = await storage.getLinks();
+      setLinks(savedLinks);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to load links');
+    }
+  };
+
+  const handleSearch = useCallback((query: string) => {
+    setSearchQuery(query);
+    if (!searchService) return;
+
+    if (!query.trim()) {
+      setFilteredLinks(links);
+      return;
+    }
+
+    const searchResults = searchService.search(query);
+    setFilteredLinks(searchResults);
+  }, [searchService, links]);
+
+  const handleAddLink = async (name: string, url: string) => {
+    try {
+      const newLink: Link = {
+        id: Date.now().toString(),
+        name,
+        url: url.toLowerCase().startsWith('http') ? url : `https://${url}`,
+        createdAt: Date.now(),
+      };
+      const updatedLinks = [newLink, ...links];
+      await storage.saveLinks(updatedLinks);
+      setLinks(updatedLinks);
+      searchService?.updateIndex(updatedLinks);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save link');
+    }
+  };
+
+  const handleDeleteLink = async (id: string) => {
+    Alert.alert(
+      'Delete Link',
+      'Are you sure you want to delete this link?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          onPress: async () => {
+            try {
+              const updatedLinks = links.filter(link => link.id !== id);
+              console.log("🚀 ~ onPress: ~ updatedLinks:", updatedLinks)
+              await storage.saveLinks(updatedLinks);
+              setLinks(updatedLinks);
+              searchService?.updateIndex(updatedLinks);
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete link');
+            }
           },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
-}
-
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+          style: 'destructive',
+        },
+      ],
+    );
   };
 
   return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
+    <SafeAreaView style={styles.container}>
+      <SearchBar 
+        value={searchQuery}
+        onChangeText={handleSearch}
       />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
+      <View style={styles.content}>
+        <LinkList links={filteredLinks} onDelete={handleDeleteLink} />
+      </View>
+      <BottomTabBar onAddPress={() => setModalVisible(true)} />
+      <AddLinkModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        onSubmit={handleAddLink}
+      />
     </SafeAreaView>
   );
 }
 
+function App(): React.JSX.Element {
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <StorageProvider storage={localStorage}>
+        <AppContent />
+      </StorageProvider>
+    </GestureHandlerRootView>
+  );
+}
+
 const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
   },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
+  content: {
+    flex: 1,
+    backgroundColor: 'white',
   },
 });
 

@@ -1,0 +1,5 @@
+<resources>
+    <!-- Add these colors -->
+    <color name="warning_color">#FFA726</color>
+    <color name="delete_button_color">#F44336</color>
+</resources> 
