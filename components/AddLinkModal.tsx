@@ -1,20 +1,51 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Modal,
   View,
-  StyleSheet,
+  TextInput,
   TouchableOpacity,
   Text,
+  StyleSheet,
+  Alert,
 } from 'react-native';
-import LinkForm from './LinkForm';
 
-type AddLinkModalProps = {
+interface AddLinkModalProps {
   visible: boolean;
   onClose: () => void;
-  onSubmit: (name: string, url: string) => void;
-};
+  onSubmit: (name: string, url: string, category: string) => void;
+  existingCategories: string[];
+}
 
-const AddLinkModal = ({ visible, onClose, onSubmit }: AddLinkModalProps) => {
+const AddLinkModal = ({ visible, onClose, onSubmit, existingCategories }: AddLinkModalProps) => {
+  const [name, setName] = useState('');
+  const [url, setUrl] = useState('');
+  const [category, setCategory] = useState('');
+  const [showNewCategory, setShowNewCategory] = useState(false);
+
+  const handleSubmit = () => {
+    if (!name.trim() || !url.trim()) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    if (!category.trim()) {
+      Alert.alert('Error', 'Please select or enter a category');
+      return;
+    }
+
+    if (!showNewCategory && !existingCategories.includes(category)) {
+      Alert.alert('Error', 'Please select a valid category or create a new one');
+      return;
+    }
+
+    onSubmit(name.trim(), url.trim(), category.trim());
+    setName('');
+    setUrl('');
+    setCategory('');
+    setShowNewCategory(false);
+    onClose();
+  };
+
   return (
     <Modal
       visible={visible}
@@ -22,18 +53,67 @@ const AddLinkModal = ({ visible, onClose, onSubmit }: AddLinkModalProps) => {
       transparent={true}
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
+      <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Add New Link</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Text style={styles.closeButton}>✕</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Name"
+            value={name}
+            onChangeText={setName}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="URL"
+            value={url}
+            onChangeText={setUrl}
+            autoCapitalize="none"
+            keyboardType="url"
+          />
+          {!showNewCategory ? (
+            <>
+              <View style={styles.categoryContainer}>
+                {existingCategories.map((cat) => (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[
+                      styles.categoryPill,
+                      category === cat && styles.selectedPill,
+                    ]}
+                    onPress={() => setCategory(cat)}
+                  >
+                    <Text style={[
+                      styles.categoryText,
+                      category === cat && styles.selectedText
+                    ]}>{cat}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TouchableOpacity
+                style={styles.newCategoryButton}
+                onPress={() => setShowNewCategory(true)}
+              >
+                <Text style={styles.newCategoryText}>+ Add New Category</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TextInput
+              style={styles.input}
+              placeholder="New Category"
+              value={category}
+              onChangeText={setCategory}
+            />
+          )}
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity style={styles.button} onPress={onClose}>
+              <Text style={styles.buttonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, styles.submitButton]}
+              onPress={handleSubmit}
+            >
+              <Text style={[styles.buttonText, styles.submitText]}>Add</Text>
             </TouchableOpacity>
           </View>
-          <LinkForm onSubmit={(name, url) => {
-            onSubmit(name, url);
-            onClose();
-          }} />
         </View>
       </View>
     </Modal>
@@ -41,31 +121,74 @@ const AddLinkModal = ({ visible, onClose, onSubmit }: AddLinkModalProps) => {
 };
 
 const styles = StyleSheet.create({
-  modalOverlay: {
+  modalContainer: {
     flex: 1,
+    justifyContent: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: 'white',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 16,
-    maxHeight: '80%',
+    margin: 20,
+    padding: 20,
+    borderRadius: 10,
   },
-  modalHeader: {
+  input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    padding: 10,
+    marginBottom: 10,
+    borderRadius: 5,
+  },
+  categoryContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    marginBottom: 10,
+  },
+  categoryPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#f0f0f0',
+    margin: 4,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  selectedPill: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  categoryText: {
+    color: '#333',
+    fontSize: 14,
+  },
+  selectedText: {
+    color: 'white',
+  },
+  newCategoryButton: {
+    padding: 10,
     alignItems: 'center',
-    marginBottom: 16,
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  newCategoryText: {
+    color: '#007AFF',
   },
-  closeButton: {
-    fontSize: 24,
-    color: '#666',
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 10,
+  },
+  button: {
+    padding: 10,
+    marginLeft: 10,
+  },
+  submitButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 5,
+  },
+  buttonText: {
+    color: '#007AFF',
+  },
+  submitText: {
+    color: 'white',
   },
 });
 

@@ -8,5 +8,5 @@ export type Link = {
   name: string;
   url: string;
   createdAt: number;
-  category?: string;
+  category: string;
 }; 
