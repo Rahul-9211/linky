@@ -27,8 +27,9 @@ const SearchBar = ({ value, onChangeText }: SearchBarProps) => {
 const styles = StyleSheet.create({
   container: {
     padding: 16,
-    borderBottomWidth: 1,
+    // borderBottomWidth: 1,
     borderBottomColor: '#eee',
+    backgroundColor: 'white',
   },
   input: {
     backgroundColor: '#f0f0f0',

@@ -12,11 +12,13 @@ type BottomTabBarProps = {
 
 const BottomTabBar = ({ onAddPress }: BottomTabBarProps) => {
   return (
-    <View style={styles.container}>
+   <View style={styles.containerParent}>
+     <View style={styles.container}>
       <View style={styles.content}>
         <AddButton onPress={onAddPress} />
       </View>
     </View>
+   </View>
   );
 };
 
@@ -29,6 +31,9 @@ const AddButton = ({ onPress }: { onPress: () => void }) => (
 );
 
 const styles = StyleSheet.create({
+  containerParent: {
+    backgroundColor: 'white',
+  },
   container: {
     backgroundColor: 'white',
     paddingBottom: 20,

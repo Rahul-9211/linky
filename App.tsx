@@ -24,6 +24,7 @@ import { SearchService } from './services/search/SearchService';
 import BottomTabBar from './components/BottomTabBar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Link } from './services/storage/StorageInterface';
+import CategoryList from './components/CategoryList';
 
 const localStorage = new LocalStorage();
 
@@ -34,6 +35,8 @@ function AppContent(): React.JSX.Element {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchService, setSearchService] = useState<SearchService | null>(null);
   const storage = useStorage();
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [categories, setCategories] = useState<string[]>([]);
 
   useEffect(() => {
     loadLinks();
@@ -41,13 +44,43 @@ function AppContent(): React.JSX.Element {
 
   useEffect(() => {
     if (links.length > 0) {
+      const uniqueCategories = Array.from(new Set(links.map(link => link.category)));
+      setCategories(uniqueCategories);
       setSearchService(new SearchService(links));
-      setFilteredLinks(links);
-    }else{
+      filterLinks(searchQuery, selectedCategory);
+    } else {
+      setCategories([]);
       setSearchService(null);
       setFilteredLinks([]);
     }
   }, [links]);
+
+  const filterLinks = useCallback((query: string, category: string | null) => {
+    let results = links;
+    
+    if (category) {
+      results = results.filter(link => link.category === category);
+    }
+    
+    if (query.trim() && searchService) {
+      results = searchService.search(query);
+      if (category) {
+        results = results.filter(link => link.category === category);
+      }
+    }
+    
+    setFilteredLinks(results);
+  }, [links, searchService]);
+
+  const handleSearch = useCallback((query: string) => {
+    setSearchQuery(query);
+    filterLinks(query, selectedCategory);
+  }, [filterLinks, selectedCategory]);
+
+  const handleCategorySelect = useCallback((category: string | null) => {
+    setSelectedCategory(category);
+    filterLinks(searchQuery, category);
+  }, [filterLinks, searchQuery]);
 
   const loadLinks = async () => {
     try {
@@ -58,26 +91,14 @@ function AppContent(): React.JSX.Element {
     }
   };
 
-  const handleSearch = useCallback((query: string) => {
-    setSearchQuery(query);
-    if (!searchService) return;
-
-    if (!query.trim()) {
-      setFilteredLinks(links);
-      return;
-    }
-
-    const searchResults = searchService.search(query);
-    setFilteredLinks(searchResults);
-  }, [searchService, links]);
-
-  const handleAddLink = async (name: string, url: string) => {
+  const handleAddLink = async (name: string, url: string, category: string) => {
     try {
       const newLink: Link = {
         id: Date.now().toString(),
         name,
         url: url.toLowerCase().startsWith('http') ? url : `https://${url}`,
         createdAt: Date.now(),
+        category,
       };
       const updatedLinks = [newLink, ...links];
       await storage.saveLinks(updatedLinks);
@@ -122,6 +143,11 @@ function AppContent(): React.JSX.Element {
         value={searchQuery}
         onChangeText={handleSearch}
       />
+      <CategoryList
+        categories={categories}
+        selectedCategory={selectedCategory}
+        onSelectCategory={handleCategorySelect}
+      />
       <View style={styles.content}>
         <LinkList links={filteredLinks} onDelete={handleDeleteLink} />
       </View>
@@ -130,6 +156,7 @@ function AppContent(): React.JSX.Element {
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         onSubmit={handleAddLink}
+        existingCategories={categories}
       />
     </SafeAreaView>
   );
