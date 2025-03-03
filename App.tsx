@@ -13,6 +13,7 @@ import {
   Text,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import LinkList from './components/LinkList';
 import AddLinkModal from './components/AddLinkModal';
@@ -25,8 +26,17 @@ import BottomTabBar from './components/BottomTabBar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Link } from './services/storage/StorageInterface';
 import CategoryList from './components/CategoryList';
+import Config from 'react-native-config';
+import { mockLinks } from './services/mockData';
+import Header from './components/Header';
+import LoginScreen from './screens/LoginScreen';
+import SignupScreen from './screens/SignupScreen';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import auth from '@react-native-firebase/auth';
+// import { AIService } from './services/ai/AIService';
 
 const localStorage = new LocalStorage();
+// const aiService = new AIService(Config.GEMINI_API_KEY || '');
 
 function AppContent(): React.JSX.Element {
   const [links, setLinks] = useState<Link[]>([]);
@@ -85,9 +95,10 @@ function AppContent(): React.JSX.Element {
   const loadLinks = async () => {
     try {
       const savedLinks = await storage.getLinks();
-      setLinks(savedLinks);
+      setLinks(savedLinks || mockLinks);
     } catch (error) {
       Alert.alert('Error', 'Failed to load links');
+      setLinks(mockLinks);
     }
   };
 
@@ -139,6 +150,7 @@ function AppContent(): React.JSX.Element {
 
   return (
     <SafeAreaView style={styles.container}>
+      <Header onSignOut={() => Alert.alert('Sign Out', 'User signed out successfully')} />
       <SearchBar 
         value={searchQuery}
         onChangeText={handleSearch}
@@ -157,12 +169,61 @@ function AppContent(): React.JSX.Element {
         onClose={() => setModalVisible(false)}
         onSubmit={handleAddLink}
         existingCategories={categories}
+        // aiService={aiService}
       />
     </SafeAreaView>
   );
 }
 
 function App(): React.JSX.Element {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showLogin, setShowLogin] = useState(true);
+
+  const signInWithGoogle = async () => {
+    try {
+      await GoogleSignin.hasPlayServices();
+      const { idToken } = await GoogleSignin.signIn();
+      const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+      return auth().signInWithCredential(googleCredential);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    GoogleSignin.configure({
+      webClientId: '382802203455-ehfhb74nojmbdrtb7lda2n0rflpel246.apps.googleusercontent.com', // Get this from Google Cloud Console
+    });
+  }, []);
+
+  const handleLogin = () => {
+    setIsAuthenticated(true);
+  };
+
+  const handleSignup = () => {
+    setIsAuthenticated(true);
+  };
+
+  const handleSkip = () => {
+    setIsAuthenticated(true);
+  };
+
+  if (!isAuthenticated) {
+    return showLogin ? (
+      <LoginScreen
+        onLogin={signInWithGoogle}
+        onSignup={() => setShowLogin(false)}
+        onSkip={handleSkip}
+      />
+    ) : (
+      <SignupScreen
+        onSignup={handleSignup}
+        onLogin={() => setShowLogin(true)}
+        onSkip={handleSkip}
+      />
+    );
+  }
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <StorageProvider storage={localStorage}>

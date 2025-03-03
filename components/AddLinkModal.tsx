@@ -8,19 +8,25 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
+import AIService from '../services/ai/AIService';
+// import { useTheme } from '../src/context/ThemeContext';
 
 interface AddLinkModalProps {
   visible: boolean;
   onClose: () => void;
   onSubmit: (name: string, url: string, category: string) => void;
   existingCategories: string[];
+  aiService?: AIService;
 }
 
-const AddLinkModal = ({ visible, onClose, onSubmit, existingCategories }: AddLinkModalProps) => {
+const AddLinkModal = ({ visible, onClose, onSubmit, existingCategories, aiService }: AddLinkModalProps) => {
+  // const { theme } = useTheme();
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [category, setCategory] = useState('');
   const [showNewCategory, setShowNewCategory] = useState(false);
+
+  // const placeholderColor = theme === 'dark' ? '#888' : '#aaa';
 
   const handleSubmit = () => {
     if (!name.trim() || !url.trim()) {
@@ -46,6 +52,16 @@ const AddLinkModal = ({ visible, onClose, onSubmit, existingCategories }: AddLin
     onClose();
   };
 
+  const handleAISuggest = async () => {
+    if (!url || !aiService) return;
+    try {
+      const suggestion = await aiService.suggestName(url);
+      if (suggestion) setName(suggestion);
+    } catch (error) {
+      console.error('Failed to get AI suggestion:', error);
+    }
+  };
+
   return (
     <Modal
       visible={visible}
@@ -58,12 +74,14 @@ const AddLinkModal = ({ visible, onClose, onSubmit, existingCategories }: AddLin
           <TextInput
             style={styles.input}
             placeholder="Name"
+            placeholderTextColor={'#888'}
             value={name}
             onChangeText={setName}
           />
           <TextInput
             style={styles.input}
             placeholder="URL"
+            placeholderTextColor={'#888'}
             value={url}
             onChangeText={setUrl}
             autoCapitalize="none"
@@ -99,10 +117,20 @@ const AddLinkModal = ({ visible, onClose, onSubmit, existingCategories }: AddLin
             <TextInput
               style={styles.input}
               placeholder="New Category"
+            placeholderTextColor={'#888'}
               value={category}
               onChangeText={setCategory}
             />
           )}
+          {/* <TouchableOpacity 
+            style={[styles.aiButton, !url && styles.aiButtonDisabled]}
+            onPress={handleAISuggest}
+            disabled={!url}
+          >
+            
+            <Text style={styles.aiButtonText}>🤖 Suggest Name</Text>
+          </TouchableOpacity> */}
+          
           <View style={styles.buttonContainer}>
             <TouchableOpacity style={styles.button} onPress={onClose}>
               <Text style={styles.buttonText}>Cancel</Text>
@@ -136,6 +164,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ddd',
     padding: 10,
+    // backgroundColor: '',
+    color: 'black',
     marginBottom: 10,
     borderRadius: 5,
   },
@@ -188,6 +218,19 @@ const styles = StyleSheet.create({
     color: '#007AFF',
   },
   submitText: {
+    color: 'white',
+  },
+  aiButton: {
+    padding: 10,
+    alignItems: 'center',
+    backgroundColor: '#007AFF',
+    borderRadius: 5,
+    marginTop: 10,
+  },
+  aiButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  aiButtonText: {
     color: 'white',
   },
 });

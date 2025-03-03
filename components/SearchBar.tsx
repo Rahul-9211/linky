@@ -15,6 +15,7 @@ const SearchBar = ({ value, onChangeText }: SearchBarProps) => {
     <View style={styles.container}>
       <TextInput
         style={styles.input}
+        placeholderTextColor={'#888'}
         placeholder="Search links..."
         value={value}
         onChangeText={onChangeText}
